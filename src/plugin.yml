@@ -1,0 +1,4 @@
+name: Minetopia
+main: me.Streampy.minetopia.Main
+version: 1.0
+commands:
