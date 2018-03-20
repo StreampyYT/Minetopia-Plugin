@@ -17,11 +17,12 @@ public class records {
 		
 		public String winkel;
 		public String beroep;
+		
 		public int level;
 		public int fitheid;
-		public cityRec city_inwoner;
 		public int geld;
 		
+		public cityRec city_inwoner; 
 		public ArrayList<plotRec> plotsList = new ArrayList<plotRec>();
 	}
 	

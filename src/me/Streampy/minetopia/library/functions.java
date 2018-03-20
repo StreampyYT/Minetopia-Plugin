@@ -3,9 +3,14 @@ package me.Streampy.minetopia.library;
 import java.io.File;
 import java.util.ArrayList;
 
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.Player;
 
 import me.Streampy.minetopia.records.records;
+import me.Streampy.minetopia.records.records.cityRec;
 import me.Streampy.minetopia.records.records.playerRec;
 import me.Streampy.minetopia.records.records.plotMemberRec;
 import me.Streampy.minetopia.records.records.plotRec;
@@ -26,15 +31,79 @@ public class functions {
 	static ArrayList<records.plotRec> plotsList = records.plotsList;
 	static ArrayList<records.cityRec> citysList = records.citysList;
 	
-	public static void loadPlayers() {
-		if (minetopia.exists()) {
-			
+	public static void saveAll() {
+		savePlayers();
+		savePlots();
+		saveCitys();
+	}
+	
+	public static void loadAll() {
+		loadPlayers(Type.firstLoad);
+		loadPlots();
+		loadCitys();
+		loadPlayers(Type.secondLoad);
+		
+	}
+	
+	public static void plotCreate(Player player, Location loc1, Location loc2) {
+		plotRec plotRecord = new plotRec();
+		plotsList.add(plotRecord);
+		
+		plotRecord.loc1 = loc1;
+		plotRecord.loc2 = loc2;
+		plotRecord.owner = null;
+		plotRecord.uuid = null;
+		
+		player.sendMessage(ChatColor.GREEN + "Plot created!");
+	}
+	
+	private static void loadPlayers(Type type) {
+		if (minetopia.exists() && playerFile.exists()) {
+			try {
+				playerConfig.load(playerFile);
+				for (int a = 0; playerConfig.contains("players." + a); a++) {
+					
+					playerRec playerRecord = null;
+					boolean newPlayer = true;
+					
+					for (int b = 0; b < playersList.size(); b++) {
+						playerRecord = playersList.get(b);
+						if (playerConfig.get("players." + a + ".uuid").equals(playerRecord.uuid)) {
+							newPlayer = false;
+							break;
+						}
+					}
+					
+					if (newPlayer == true) {
+						playerRecord = new playerRec();
+						playersList.add(playerRecord);
+					}
+					
+					if (type.equals(Type.firstLoad)) {
+						playerRecord.name = playerConfig.getString("players." + a + ".name");
+						playerRecord.uuid = playerConfig.getString("players." + a + ".uuid");
+						playerRecord.prefix = playerConfig.getString("players." + a + ".prefix");
+						playerRecord.suffix = playerConfig.getString("players." + a + ".suffix");
+						playerRecord.winkel = playerConfig.getString("players." + a + ".winkel");
+						playerRecord.beroep = playerConfig.getString("players." + a + ".beroep");
+						
+						playerRecord.level = playerConfig.getInt("players." + a + ".level");
+						playerRecord.fitheid = playerConfig.getInt("players." + a + ".fitheid");
+						playerRecord.geld = playerConfig.getInt("players." + a + ".geld");
+						//first loading (player gegevens)
+					}else if (type.equals(Type.secondLoad)) {
+						//second loading (city + plot)
+					}
+				}
+			}catch(Exception ex) {
+				ex.printStackTrace();
+			}
 		}else {
 			//Geen data / Map gevonden of bestaat niet
 		}
 	}
-	
-	public static void savePlayers() {
+
+	private static void savePlayers() {
 		if (playersList.size() > 0) {
 			files.makeDirectoryIfNotExist(minetopia);
 			files.makeFileIfNotExist(playerFile);
@@ -67,15 +136,40 @@ public class functions {
 		
 	}	
 	
-	public static void loadPlots() {
-		if (minetopia.exists()) {
-			
+	private static void loadPlots() {
+		if (minetopia.exists() && plotFile.exists()) {
+			try {
+				plotConfig.load(plotFile);
+				for (int a = 0; plotConfig.contains("plots." + a); a++) {
+					plotRec plotRecord = new plotRec();
+					plotsList.add(plotRecord);
+					Location loc1 = new Location(Bukkit.getWorld(plotConfig.getString("plots." + a + ".loc.1.world")), plotConfig.getInt("plots." + a + ".loc.1.x"), 0 , plotConfig.getInt("plots." + a + ".loc.1.z"));
+					Location loc2 = new Location(Bukkit.getWorld(plotConfig.getString("plots." + a + ".loc.2.world")), plotConfig.getInt("plots." + a + ".loc.2.x"), 0 , plotConfig.getInt("plots." + a + ".loc.2.z"));
+					
+					plotRecord.uuid = plotConfig.getString("plots." + a + ".uuid");
+					plotRecord.loc1 = loc1;
+					plotRecord.loc2 = loc2;
+					plotRecord.owner = getPlayerRecFromUUID(plotConfig.getString("plots." + a + ".owner"));
+					
+					for (int b = 0; plotConfig.contains("plots." + a + ".members." + b); b++) {
+						plotMemberRec plotMemberRecord = new plotMemberRec();
+						plotRecord.membersList.add(plotMemberRecord);
+						
+						plotMemberRecord.member = getPlayerRecFromUUID(plotConfig.getString("plots." + a + ".members." + b + ".uuid"));
+						for (int c = 0; plotConfig.contains("plots." + a + ".members." + b + ".settings." + c); c++) {
+							plotMemberRecord.plotAccessList.add(plotaccess.valueOf(plotConfig.getString("plots." + a + ".members." + b + ".settings." + c)));
+						}
+					}
+				}
+			}catch(Exception ex) {
+				ex.printStackTrace();
+			}
 		}else {
 			//Geen data / Map gevonden of bestaat niet
 		}
 	}
 	
-	public static void savePlots() {
+	private static void savePlots() {
 		if (plotsList.size() > 0) {
 			files.makeDirectoryIfNotExist(minetopia);
 			files.makeFileIfNotExist(plotFile);
@@ -84,16 +178,18 @@ public class functions {
 				for (int a = 0; a < plotsList.size(); a++) {
 					plotRec plotRecord = plotsList.get(a);
 					plotConfig.set("plots." + a + ".uuid", plotRecord.uuid);
-					plotConfig.set("plots." + a + ".owner", plotRecord.owner.uuid);
 					
+					if (plotRecord.owner != null) {
+						plotConfig.set("plots." + a + ".owner", plotRecord.owner.uuid);
+					}else {
+						plotConfig.set("plots." + a + ".owner", null);
+					}
 					plotConfig.set("plots." + a + ".loc.1.world", plotRecord.loc1.getWorld().getName());
 					plotConfig.set("plots." + a + ".loc.1.x", plotRecord.loc1.getBlockX());
-					plotConfig.set("plots." + a + ".loc.1.y", plotRecord.loc1.getBlockY());
 					plotConfig.set("plots." + a + ".loc.1.z", plotRecord.loc1.getBlockZ());
 					
 					plotConfig.set("plots." + a + ".loc.2.world", plotRecord.loc2.getWorld().getName());
 					plotConfig.set("plots." + a + ".loc.2.x", plotRecord.loc2.getBlockX());
-					plotConfig.set("plots." + a + ".loc.2.y", plotRecord.loc2.getBlockY());
 					plotConfig.set("plots." + a + ".loc.2.z", plotRecord.loc2.getBlockZ());
 					
 					for (int b = 0; b < plotRecord.membersList.size(); b++) {
@@ -113,7 +209,7 @@ public class functions {
 		}
 	}
 	
-	public static void loadCitys() {
+	private static void loadCitys() {
 		if (minetopia.exists()) {
 			
 		}else {
@@ -121,10 +217,44 @@ public class functions {
 		}
 	}
 	
-	public static void saveCitys() {
-		files.makeDirectoryIfNotExist(minetopia);
-		files.makeFileIfNotExist(cityFile);
+	private static void saveCitys() {
+		if (citysList.size() > 0) {
+			files.makeDirectoryIfNotExist(minetopia);
+			files.makeFileIfNotExist(cityFile);
+			
+			try {
+				cityConfig.load(cityFile);
+				for (int a = 0; a < citysList.size(); a++) {
+					cityRec cityRecord = citysList.get(a);
+					cityConfig.set("citys." + a + ".name", cityRecord.name);
+					cityConfig.set("citys." + a + ".burgerMeester", cityRecord.burgerMeester.uuid);
+					for (int b = 0; b < cityRecord.plotsList.size(); b++) {
+						plotRec plotRecord = cityRecord.plotsList.get(b);
+						cityConfig.set("citys." + a + ".plots." + b + ".uuid", plotRecord.uuid);
+						cityConfig.save(cityFile);
+					}
+					
+					for (int c = 0; c < cityRecord.plotsList.size(); c++) {
+						playerRec inwonersRecord = cityRecord.inwonersList.get(c);
+						cityConfig.set("citys." + a + ".inwoners." + c + ".uuid", inwonersRecord.uuid);
+						cityConfig.save(cityFile);
+					}
+					cityConfig.save(cityFile);
+				}
+			}catch(Exception ex) {
+				ex.printStackTrace();
+			}
+		}
+		
 	}
 	
+	public static playerRec getPlayerRecFromUUID(String uuid) {
+		for (playerRec playerRecord : playersList) {
+			if (playerRecord.uuid.equals(uuid)) {
+				return playerRecord;
+			}
+		}
+		return null;
+	}
 	
 }

@@ -2,3 +2,7 @@ name: Minetopia
 main: me.Streampy.minetopia.Main
 version: 1.0
 commands:
+  minetopia:
+    description: minetopia help menu
+  mt:
+    description: minetopia help menu
