@@ -4,7 +4,6 @@ import java.io.File;
 import java.util.ArrayList;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -45,7 +44,7 @@ public class functions {
 		
 	}
 	
-	public static void plotCreate(Player player, Location loc1, Location loc2) {
+	public static void plotCreate(Location loc1, Location loc2) {
 		plotRec plotRecord = new plotRec();
 		plotsList.add(plotRecord);
 		
@@ -53,8 +52,49 @@ public class functions {
 		plotRecord.loc2 = loc2;
 		plotRecord.owner = null;
 		plotRecord.uuid = null;
+	}
+	
+	public static void plotCreate(Player player, Location loc1, Location loc2) {
+		plotRec plotRecord = new plotRec();
+		plotsList.add(plotRecord);
 		
-		player.sendMessage(ChatColor.GREEN + "Plot created!");
+		plotRecord.loc1 = loc1;
+		plotRecord.loc2 = loc2;
+		plotRecord.owner = getPlayerRecFromUUID(player.getUniqueId().toString());
+		plotRecord.uuid = null;
+	}
+	
+	public static void plotCreate(String uuid, Location loc1, Location loc2) {
+		plotRec plotRecord = new plotRec();
+		plotsList.add(plotRecord);
+		
+		plotRecord.loc1 = loc1;
+		plotRecord.loc2 = loc2;
+		plotRecord.owner = getPlayerRecFromUUID(uuid);
+		plotRecord.uuid = null;
+	}
+	
+	
+	
+	public static void playerCreate(String uuid, String name) {
+		playerRec playerRecord = getPlayerRecFromUUID(uuid);
+		if (playerRecord == null) {
+			playerRecord = new playerRec();
+			playersList.add(playerRecord);
+			
+			playerRecord.name = name;
+			playerRecord.uuid = uuid;
+			playerRecord.prefix = null; //Moet uit config worden gehaald als nog niet gezet
+			playerRecord.suffix = null; //Moet uit config worden gehaald als nog niet gezet
+			playerRecord.winkel = null;
+			playerRecord.beroep = null;
+			
+			playerRecord.level = 1;
+			playerRecord.fitheid = 20; //Moet uit config worden gehaald als nog niet gezet
+			playerRecord.geld = 10000; //Moet uit config worden gehaald als nog niet gezet
+			
+			playerRecord.city_inwoner = null; //Moet uit config worden gehaald als nog niet gezet
+		}		
 	}
 	
 	private static void loadPlayers(Type type) {
@@ -92,6 +132,11 @@ public class functions {
 						playerRecord.geld = playerConfig.getInt("players." + a + ".geld");
 						//first loading (player gegevens)
 					}else if (type.equals(Type.secondLoad)) {
+						playerRecord.city_inwoner = getCityRecFromNAME(playerConfig.getString("players." + a + ".city"));
+						
+						for (int c = 0; playerConfig.contains("players." + a + ".plots." + c); c++) {
+							playerRecord.plotsList.add(getPlotRecFromUUID(playerConfig.getString("players." + a + ".plots." + c + ".uuid")));
+						}
 						//second loading (city + plot)
 					}
 				}
@@ -120,8 +165,11 @@ public class functions {
 					playerConfig.set("players." + a + ".level", playerRecord.level);
 					playerConfig.set("players." + a + ".fitheid", playerRecord.fitheid);
 					playerConfig.set("players." + a + ".geld", playerRecord.geld);
-					playerConfig.set("players." + a + ".city", playerRecord.city_inwoner.name);
-					
+					if (playerRecord.city_inwoner == null) {
+						playerConfig.set("players." + a + ".city", playerRecord.city_inwoner);
+					}else {
+						playerConfig.set("players." + a + ".city", playerRecord.city_inwoner.name);
+					}
 					for (int b = 0; b < playerRecord.plotsList.size(); b++) {
 						plotRec plotRecord = playerRecord.plotsList.get(b);
 						playerConfig.set("players." + a + ".plots." + b + ".uuid", plotRecord.uuid);
@@ -210,8 +258,24 @@ public class functions {
 	}
 	
 	private static void loadCitys() {
-		if (minetopia.exists()) {
-			
+		if (minetopia.exists() && cityFile.exists()) {
+			try {
+				cityConfig.load(cityFile);
+				for (int a = 0; cityConfig.contains("citys." + a); a++) {
+					cityRec cityRecord = new cityRec();
+					citysList.add(cityRecord);
+					cityRecord.name = cityConfig.getString("citys." + a + ".name");
+					cityRecord.burgerMeester = getPlayerRecFromUUID(cityConfig.getString("citys." + a + ".burgerMeester"));
+					for (int b = 0; cityConfig.contains("citys." + a + ".plots." + b + ".uuid"); b++) {
+						cityRecord.plotsList.add(getPlotRecFromUUID(cityConfig.getString("citys." + a + ".plots." + b + ".uuid")));
+					}
+					for (int c = 0; cityConfig.contains("citys." + a + ".inwoners." + c + ".uuid"); c++) {
+						cityRecord.inwonersList.add(getPlayerRecFromUUID(cityConfig.getString("citys." + a + ".inwoners." + c + ".uuid")));
+					}
+				}
+			}catch(Exception ex) {
+				ex.printStackTrace();
+			}
 		}else {
 			//Geen data / Map gevonden of bestaat niet
 		}
@@ -252,6 +316,24 @@ public class functions {
 		for (playerRec playerRecord : playersList) {
 			if (playerRecord.uuid.equals(uuid)) {
 				return playerRecord;
+			}
+		}
+		return null;
+	}
+	
+	public static plotRec getPlotRecFromUUID(String uuid) {
+		for (plotRec plotRecord : plotsList) {
+			if (plotRecord.uuid.equals(uuid)) {
+				return plotRecord;
+			}
+		}
+		return null;
+	}
+	
+	public static cityRec getCityRecFromNAME(String name) {
+		for (cityRec cityRecord : citysList) {
+			if (cityRecord.name.equals(name)) {
+				return cityRecord;
 			}
 		}
 		return null;
